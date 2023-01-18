@@ -33,7 +33,7 @@ var query = db.Customers.Where(c => c.City == city)
 
 However, if just rearrange the order of Where and Select it all falls apart.
 
-
+```
 var query = db.Customers.Select(c => new {
 
 
@@ -42,7 +42,7 @@ var query = db.Customers.Select(c => new {
 
                             Location = c.City })
                         .Where(x => x.Location == city);
-
+```
 This handsome little query generates SQL that’s not exactly right.
 
 
@@ -62,7 +62,7 @@ I suppose either is possible.  Yet, if I consider a slightly more complicated ex
 
  
 
-
+```
 var query = db.Customers.Select(c => new {
 
 
@@ -75,7 +75,7 @@ var query = db.Customers.Select(c => new {
                                 }
                             })
                         .Where(x => x.Location.City == city);
-
+```
 Now, how am I going to translate this? The existing code does not even contain a concept of what this intermediate ‘Location’ object could be.  Luckily, I already realize what I need to do, yet it’s going to require a big change.  I need to step away from this notion that my provider is just translating query expressions into text. It’s translating query expressions into SQL. Text is only one possible manifestation of SQL and it’s not a very good one for programming logic to operate on. Of course, I’m going to need text eventually, but if I could first represent SQL as an abstraction, I could handle much more complicated translations.
 
 
@@ -87,7 +87,7 @@ Of course, the best data structure to operate on is a semantic SQL tree. So, ide
 
  
 
-
+```
 internal enum DbExpressionType {
 
 
@@ -396,7 +396,7 @@ internal class ProjectionExpression : Expression {
 
 }
 
-
+```
  
 
 
@@ -428,7 +428,7 @@ Of course, now that I’ve got new nodes, I need a new visitor. The DbExpression
 
 
  
-
+```
 
 internal class DbExpressionVisitor : ExpressionVisitor {
 
@@ -1242,7 +1242,7 @@ internal class QueryBinder : ExpressionVisitor {
 
 
 }
-
+```
 
 
 One thing to notice is that there is a lot more going on here than in the QueryTranslator of yore. Translation for Where and Select have been factored out into separate methods.  They don’t produce text anymore, but instances of ProjectionExpression and SelectExpression.  The ColumnProjector looks like it is doing something much more complicated too.  I haven’t shown the code for that yet, but it has changed as well.  There’s all these little helper methods for understanding the meaning of a table or a column.  This is the starting of a factoring that may well end with some kind of mapping system, but I’ll leave that for the future.
@@ -1273,7 +1273,7 @@ Whew!  That’s a lot to take in.  Unfortunately, I am not done. There’s also 
 
 
  
-
+```
 
     internal sealed class ProjectedColumns {
 
@@ -1642,7 +1642,7 @@ Whew!  That’s a lot to take in.  Unfortunately, I am not done. There’s also 
 
 
     }
-
+```
 The ColumnProjector is no longer assembling text for the select command, nor is it rewriting the selector expression into a function that constructs an object from a DataReader.  However, it is doing something that is almost the same thing.  It is assembling a list of ColumnDeclaration objects that are going to be used to construct a SelectExpression node, and it is rewriting the selector expression into a projector expression that references the columns assembled in the list.
 
 
@@ -1676,7 +1676,7 @@ You will see as you examine the code there is one additional complication that d
 Okay, now that I’ve built hybrid expression trees, bound them and gave them a nice spanking, I still need to get text out or the whole process is for naught.  So I took the text generating code from the QueryTranslator and built a new QueryFormatter class whose sole responsibility is to generate the text from an expression tree.  No more needing to actually build the tree at the same time.
 
 
- 
+ ```
 
 
 internal class QueryFormatter : DbExpressionVisitor {
@@ -2275,7 +2275,7 @@ internal class ProjectionBuilder : DbExpressionVisitor {
 
 }
 
-
+```
  
 
 
@@ -2294,7 +2294,7 @@ Luckily, I don’t have to rewrite the ProjectionReader. It still works the same
 That just leaves the putting it all together step.  Here’s the new rewrite to DbQueryProvider.
 
 
- 
+ ```
 
 
 public class DbQueryProvider : QueryProvider {
@@ -2449,12 +2449,12 @@ var query = db.Customers.Select(c => new {
                         .Where(x => x.Location.City == city);
 
 
-
+```
 It runs successfully producing the following output:
 
 
  
-
+```
 
 Query:
 
@@ -2508,7 +2508,7 @@ WHERE (t2.City = 'London')
 
 
 
- 
+ ```
 
 
 A better looking query, a better looking result, and it works no matter how many Select’s or Where’s I add, no matter how complex I make each projection.
