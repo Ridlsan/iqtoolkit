@@ -1,4 +1,4 @@
-# LINQ: Building an IQueryable Provider ñ Part V: Improving column binding
+# LINQ: Building an IQueryable Provider ‚Äì Part V: Improving column binding
 
 Matt Warren - MSFT; August 3, 2007
 
@@ -9,7 +9,7 @@ This is the fifth in a series of posts on how to build a LINQ IQueryable provide
 
 Complete list of posts in the Building an IQueryable Provider series 
 
-Over the past four parts of this series I have constructed a working LINQ IQueryable provider that targets ADO and SQL and has so far been able to translate both Queryable.Where and Queryable.Select standard query operators. Yet, as big of an accomplishment that has been there are still a few gaping holes and Iím not talking about other missing operators like OrderBy and Join. Iím talking about huge conceptual gaffs that will bite anyone that strays from my oh-so-ideally crafted demo queries.
+Over the past four parts of this series I have constructed a working LINQ IQueryable provider that targets ADO and SQL and has so far been able to translate both Queryable.Where and Queryable.Select standard query operators. Yet, as big of an accomplishment that has been there are still a few gaping holes and I‚Äôm not talking about other missing operators like OrderBy and Join. I‚Äôm talking about huge conceptual gaffs that will bite anyone that strays from my oh-so-ideally crafted demo queries.
 
 
 Fixing the Gaping Holes
@@ -17,7 +17,7 @@ Fixing the Gaping Holes
 
 Certainly, I can write a simple where/select pair and it works as advertised.  My select expression can be arbitrarily complex and it still chugs along.
 
-
+```
 var query = db.Customers.Where(c => c.City == city)
 
 
@@ -29,7 +29,7 @@ var query = db.Customers.Where(c => c.City == city)
 
                             Location = c.City });
 
-
+```
 
 However, if just rearrange the order of Where and Select it all falls apart.
 
@@ -43,7 +43,7 @@ var query = db.Customers.Select(c => new {
                             Location = c.City })
                         .Where(x => x.Location == city);
 
-This handsome little query generates SQL thatís not exactly right.
+This handsome little query generates SQL that‚Äôs not exactly right.
 
 
  
@@ -51,13 +51,13 @@ This handsome little query generates SQL thatís not exactly right.
 
 SELECT * FROM (SELECT ContactName, City FROM (SELECT * FROM Customers) AS T) AS T WHERE (Location = 'London')
 
-It also generates an exception when executed, ìInvalid column name 'Location'.î  It seems my oversimplifying practice of treating member accesses as column references has backfired.  I naively assumed that the only member accesses in the sub-trees would match the names of the columns being generated. Yet, thatís obviously not true. So either I need to find a way to change the names of columns to match or I need to figure out some other way to deal with member accesses.
+It also generates an exception when executed, ‚ÄúInvalid column name 'Location'.‚Äù  It seems my oversimplifying practice of treating member accesses as column references has backfired.  I naively assumed that the only member accesses in the sub-trees would match the names of the columns being generated. Yet, that‚Äôs obviously not true. So either I need to find a way to change the names of columns to match or I need to figure out some other way to deal with member accesses.
 
 
  
 
 
-I suppose either is possible.  Yet, if I consider a slightly more complicated example, renaming the columns is not sufficient.  If the select expression produces a hierarchy of objects, then references to members can become a ëmulti-dotí operation.
+I suppose either is possible.  Yet, if I consider a slightly more complicated example, renaming the columns is not sufficient.  If the select expression produces a hierarchy of objects, then references to members can become a ‚Äòmulti-dot‚Äô operation.
 
 
  
@@ -76,13 +76,13 @@ var query = db.Customers.Select(c => new {
                             })
                         .Where(x => x.Location.City == city);
 
-Now, how am I going to translate this? The existing code does not even contain a concept of what this intermediate ëLocationí object could be.  Luckily, I already realize what I need to do, yet itís going to require a big change.  I need to step away from this notion that my provider is just translating query expressions into text. Itís translating query expressions into SQL. Text is only one possible manifestation of SQL and itís not a very good one for programming logic to operate on. Of course, Iím going to need text eventually, but if I could first represent SQL as an abstraction, I could handle much more complicated translations.
+Now, how am I going to translate this? The existing code does not even contain a concept of what this intermediate ‚ÄòLocation‚Äô object could be.  Luckily, I already realize what I need to do, yet it‚Äôs going to require a big change.  I need to step away from this notion that my provider is just translating query expressions into text. It‚Äôs translating query expressions into SQL. Text is only one possible manifestation of SQL and it‚Äôs not a very good one for programming logic to operate on. Of course, I‚Äôm going to need text eventually, but if I could first represent SQL as an abstraction, I could handle much more complicated translations.
 
 
  
 
 
-Of course, the best data structure to operate on is a semantic SQL tree. So, ideally, I would have this entirely separate tree definition for SQL that I could translate LINQ query expressions into, but that would be a lot of work.  Luckily, the definition of this ideal SQL tree would overlap a lot with LINQ trees, so Iím going to cheat and simply teach LINQ expression trees about SQL. To do this, Iíll add some new expression node types.  It wonít matter if no other LINQ API understands them. Iíll just keep them to myself.
+Of course, the best data structure to operate on is a semantic SQL tree. So, ideally, I would have this entirely separate tree definition for SQL that I could translate LINQ query expressions into, but that would be a lot of work.  Luckily, the definition of this ideal SQL tree would overlap a lot with LINQ trees, so I‚Äôm going to cheat and simply teach LINQ expression trees about SQL. To do this, I‚Äôll add some new expression node types.  It won‚Äôt matter if no other LINQ API understands them. I‚Äôll just keep them to myself.
 
 
  
@@ -406,7 +406,7 @@ The only bits of SQL I really need to add to LINQ expression trees are the conce
  
 
 
-I went ahead and defined my own DbExpressionType enum that ëextendsí the base ExpressionType enum by picking a sufficiently large starting value to not collide with the other definitions.  If there was such a way as to derive from an enum I would have done that, but this will work as long as I am diligent.
+I went ahead and defined my own DbExpressionType enum that ‚Äòextends‚Äô the base ExpressionType enum by picking a sufficiently large starting value to not collide with the other definitions.  If there was such a way as to derive from an enum I would have done that, but this will work as long as I am diligent.
 
 
  
@@ -418,13 +418,13 @@ Each of the new expression nodes follows the same pattern set by the LINQ expres
  
 
 
-The ProjectionExpression describes how to construct a result object out of the columns of a select expression.  If you think about it, this is almost exactly the same job that the projection expression held in Part IV, the one that was used to build the delegate for the ProjectionReader. Only this time, itís possible to reason about projection in terms of the SQL query and not just as a function that assembles objects out of DataReaders.
+The ProjectionExpression describes how to construct a result object out of the columns of a select expression.  If you think about it, this is almost exactly the same job that the projection expression held in Part IV, the one that was used to build the delegate for the ProjectionReader. Only this time, it‚Äôs possible to reason about projection in terms of the SQL query and not just as a function that assembles objects out of DataReaders.
 
 
  
 
 
-Of course, now that Iíve got new nodes, I need a new visitor. The DbExpressionVisitor extends the ExpressionVisitor, adding the base visit pattern for the new nodes.
+Of course, now that I‚Äôve got new nodes, I need a new visitor. The DbExpressionVisitor extends the ExpressionVisitor, adding the base visit pattern for the new nodes.
 
 
  
@@ -617,19 +617,19 @@ internal class DbExpressionVisitor : ExpressionVisitor {
 
 
 
-Thatís better.  Now I feel like Iím really headed somewhere!
+That‚Äôs better.  Now I feel like I‚Äôm really headed somewhere!
 
 
  
 
 
-The next step is to take a stick of dynamite and blow up the QueryTranslator. No more monolithic expression tree to string translator.  What I need are individual pieces that handle separate tasks;  one to bind the expression tree by figuring out what methods like Queryable.Select mean and another to convert the resulting tree into SQL text.  Hopefully, by concocting this LINQ/SQL hybrid tree Iíll be able to figure out the member access mess.
+The next step is to take a stick of dynamite and blow up the QueryTranslator. No more monolithic expression tree to string translator.  What I need are individual pieces that handle separate tasks;  one to bind the expression tree by figuring out what methods like Queryable.Select mean and another to convert the resulting tree into SQL text.  Hopefully, by concocting this LINQ/SQL hybrid tree I‚Äôll be able to figure out the member access mess.
 
 
  
 
 
-Hereís the code for the new QueryBinder class.
+Here‚Äôs the code for the new QueryBinder class.
 
 
  
@@ -1245,13 +1245,13 @@ internal class QueryBinder : ExpressionVisitor {
 
 
 
-One thing to notice is that there is a lot more going on here than in the QueryTranslator of yore. Translation for Where and Select have been factored out into separate methods.  They donít produce text anymore, but instances of ProjectionExpression and SelectExpression.  The ColumnProjector looks like it is doing something much more complicated too.  I havenít shown the code for that yet, but it has changed as well.  Thereís all these little helper methods for understanding the meaning of a table or a column.  This is the starting of a factoring that may well end with some kind of mapping system, but Iíll leave that for the future.
+One thing to notice is that there is a lot more going on here than in the QueryTranslator of yore. Translation for Where and Select have been factored out into separate methods.  They don‚Äôt produce text anymore, but instances of ProjectionExpression and SelectExpression.  The ColumnProjector looks like it is doing something much more complicated too.  I haven‚Äôt shown the code for that yet, but it has changed as well.  There‚Äôs all these little helper methods for understanding the meaning of a table or a column.  This is the starting of a factoring that may well end with some kind of mapping system, but I‚Äôll leave that for the future.
 
 
  
 
 
-A key method to examine is the GetTableProjection method that actually assembles a query (with both Select and Project expressions) that represent the default query for getting members out of the database table. No more ìselect *î here.  The default table projection only represents the columns that I defined in my domain class declarations.
+A key method to examine is the GetTableProjection method that actually assembles a query (with both Select and Project expressions) that represent the default query for getting members out of the database table. No more ‚Äúselect *‚Äù here.  The default table projection only represents the columns that I defined in my domain class declarations.
 
 
  
@@ -1263,13 +1263,13 @@ Another thing to note is the change in the VisitMemberAccess method.  I no longe
  
 
 
-This is how it works. When I translate a ëtableí constant into a table projection (via GetTableProjection), I include a projector expression that describes how to construct an object out of the tableís columns.  When I get to a Select or Where method I add a mapping from the parameter expression declared by the LambdaExpression argument to the projector of the ëpreviousí portion of the query.  For the first Where or Select thatís just the projector from the table projection.  So, later when I see a parameter expression in VisitParameter I substitute the entire previous projector expression.  Itís okay to do this, the nodes are immutable and so I can include them many times in the tree.  Finally, when I get to the member access node Iíve already turned the parameter into its semantic equivalent. This expression is likely a new or member-init expression node, and so I merely do a lookup in this structure to find the expression that the member access should be replaced with.  Often, this simply finds a ColumnExpression node defined by the table projection.  It could, however, find another new or member-init expression from a previous Select operation that produced a hierarchy.  If it did, then a subsequent member access operation would look inside this expression, and so on.
+This is how it works. When I translate a ‚Äòtable‚Äô constant into a table projection (via GetTableProjection), I include a projector expression that describes how to construct an object out of the table‚Äôs columns.  When I get to a Select or Where method I add a mapping from the parameter expression declared by the LambdaExpression argument to the projector of the ‚Äòprevious‚Äô portion of the query.  For the first Where or Select that‚Äôs just the projector from the table projection.  So, later when I see a parameter expression in VisitParameter I substitute the entire previous projector expression.  It‚Äôs okay to do this, the nodes are immutable and so I can include them many times in the tree.  Finally, when I get to the member access node I‚Äôve already turned the parameter into its semantic equivalent. This expression is likely a new or member-init expression node, and so I merely do a lookup in this structure to find the expression that the member access should be replaced with.  Often, this simply finds a ColumnExpression node defined by the table projection.  It could, however, find another new or member-init expression from a previous Select operation that produced a hierarchy.  If it did, then a subsequent member access operation would look inside this expression, and so on.
 
 
  
 
 
-Whew!  Thatís a lot to take in.  Unfortunately, I am not done. Thereís also this ColumnProjector class that is a whole lot different than before.  Take a look.
+Whew!  That‚Äôs a lot to take in.  Unfortunately, I am not done. There‚Äôs also this ColumnProjector class that is a whole lot different than before.  Take a look.
 
 
  
@@ -1649,19 +1649,19 @@ The ColumnProjector is no longer assembling text for the select command, nor is 
  
 
 
-So how does it work?  Iíve probably over engineered this class for what Iím using it for right now, but it will come in handy in the future so Iíll leave it as is.  Before I get into how it works, letís think about what it needs to do.
+So how does it work?  I‚Äôve probably over engineered this class for what I‚Äôm using it for right now, but it will come in handy in the future so I‚Äôll leave it as is.  Before I get into how it works, let‚Äôs think about what it needs to do.
 
 
  
 
 
-Given some selector expression, I really need to figure out which parts of the expression should correspond to column declarations of a SQL select statement.  These could be as simple as identifying the column references (ColumnExpressionís) left over in the tree after binding.  Of course, that would mean the expression ëa + bí would turn into two column declarations, one for ëaí and one for ëbí, leaving the ë+í operation residing in the newly rebuilt projector expression.  That would certainly work, but wouldnít it make sense to be able to put the entire ëa + bí expression into the column?  That way it would be computed by SQL server instead of during construction of the results.  If a Where operation, appearing after the Select operation, were to reference this expression it would have to evaluate it on the server anyway. Ignoring for the moment that I have not even allowed for ë+í operations to be translated, you can start to see that the problem of figuring out what should be in a column and what should be in the projection is a problem akin to the problem of figuring out how to pre-evaluate isolated sub-trees.
+Given some selector expression, I really need to figure out which parts of the expression should correspond to column declarations of a SQL select statement.  These could be as simple as identifying the column references (ColumnExpression‚Äôs) left over in the tree after binding.  Of course, that would mean the expression ‚Äòa + b‚Äô would turn into two column declarations, one for ‚Äòa‚Äô and one for ‚Äòb‚Äô, leaving the ‚Äò+‚Äô operation residing in the newly rebuilt projector expression.  That would certainly work, but wouldn‚Äôt it make sense to be able to put the entire ‚Äòa + b‚Äô expression into the column?  That way it would be computed by SQL server instead of during construction of the results.  If a Where operation, appearing after the Select operation, were to reference this expression it would have to evaluate it on the server anyway. Ignoring for the moment that I have not even allowed for ‚Äò+‚Äô operations to be translated, you can start to see that the problem of figuring out what should be in a column and what should be in the projection is a problem akin to the problem of figuring out how to pre-evaluate isolated sub-trees.
 
 
  
 
 
-The Evaluator class did this work using a two pass system of first nominating nodes that could be evaluated locally and then a second pass to pick the first nominated nodes from the top down, thus achieving evaluation of ëmaximalí sub-trees.  Figuring out what could or should be in a column declaration is just same kind of problem, only with a possibly different rule about what should be included or not.  I want to pluck off the maximal sub-trees of nodes that can legally be placed in columns.  Instead of evaluating these trees I just want to make them part of a SelectExpression and rewrite the remaining selector tree into a projector that references the new columns.
+The Evaluator class did this work using a two pass system of first nominating nodes that could be evaluated locally and then a second pass to pick the first nominated nodes from the top down, thus achieving evaluation of ‚Äòmaximal‚Äô sub-trees.  Figuring out what could or should be in a column declaration is just same kind of problem, only with a possibly different rule about what should be included or not.  I want to pluck off the maximal sub-trees of nodes that can legally be placed in columns.  Instead of evaluating these trees I just want to make them part of a SelectExpression and rewrite the remaining selector tree into a projector that references the new columns.
 
 
  
@@ -1673,7 +1673,7 @@ You will see as you examine the code there is one additional complication that d
  
 
 
-Okay, now that Iíve built hybrid expression trees, bound them and gave them a nice spanking, I still need to get text out or the whole process is for naught.  So I took the text generating code from the QueryTranslator and built a new QueryFormatter class whose sole responsibility is to generate the text from an expression tree.  No more needing to actually build the tree at the same time.
+Okay, now that I‚Äôve built hybrid expression trees, bound them and gave them a nice spanking, I still need to get text out or the whole process is for naught.  So I took the text generating code from the QueryTranslator and built a new QueryFormatter class whose sole responsibility is to generate the text from an expression tree.  No more needing to actually build the tree at the same time.
 
 
  
@@ -2204,13 +2204,13 @@ internal class QueryFormatter : DbExpressionVisitor {
  
 
 
-In addition to adding logic to write out the new SelectExpression node, Iíve advanced the formatting logic to include (gasp) new-lines and indentation.  Now isnít that special? 
+In addition to adding logic to write out the new SelectExpression node, I‚Äôve advanced the formatting logic to include (gasp) new-lines and indentation.  Now isn‚Äôt that special? 
 
 
  
 
 
-Of course, I also have to end up with a LambdaExpression that builds the result objects. I used to get that out of the ColumnProjector class, but now itís generating these semantic SQL projections, not at all what I need to do the real heavy-lifting of making actual objects.  So I need to transform it again. I built a little class called ProjectionBuilder to do that.
+Of course, I also have to end up with a LambdaExpression that builds the result objects. I used to get that out of the ColumnProjector class, but now it‚Äôs generating these semantic SQL projections, not at all what I need to do the real heavy-lifting of making actual objects.  So I need to transform it again. I built a little class called ProjectionBuilder to do that.
 
 
  
@@ -2285,13 +2285,13 @@ This class simply does what the ColumnProjector used to do, only it now benefits
  
 
 
-Luckily, I donít have to rewrite the ProjectionReader. It still works the same as before. What I do get to do is get rid of the ObjectReader, since I now always have a projector expression.  I build one in the QueryBinder automatically every time I see a table.
+Luckily, I don‚Äôt have to rewrite the ProjectionReader. It still works the same as before. What I do get to do is get rid of the ObjectReader, since I now always have a projector expression.  I build one in the QueryBinder automatically every time I see a table.
 
 
  
 
 
-That just leaves the putting it all together step.  Hereís the new rewrite to DbQueryProvider.
+That just leaves the putting it all together step.  Here‚Äôs the new rewrite to DbQueryProvider.
 
 
  
@@ -2423,7 +2423,7 @@ public class DbQueryProvider : QueryProvider {
  
 
 
-Itís not too different from before.  The Translate method has multiple steps, invoking the additional visitors, and the Execute method no longer has to build ObjectReader if the projector does not exist.  It always exists.
+It‚Äôs not too different from before.  The Translate method has multiple steps, invoking the additional visitors, and the Execute method no longer has to build ObjectReader if the projector does not exist.  It always exists.
 
 
  
@@ -2511,7 +2511,7 @@ WHERE (t2.City = 'London')
  
 
 
-A better looking query, a better looking result, and it works no matter how many Selectís or Whereís I add, no matter how complex I make each projection.
+A better looking query, a better looking result, and it works no matter how many Select‚Äôs or Where‚Äôs I add, no matter how complex I make each projection.
 
 
  
@@ -2523,7 +2523,7 @@ A better looking query, a better looking result, and it works no matter how many
  
 
 
-At least Iíll let you think that until I point out the next gaping hole. J
+At least I‚Äôll let you think that until I point out the next gaping hole. J
 
 
  
